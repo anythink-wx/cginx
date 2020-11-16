@@ -11,20 +11,22 @@ type Connection struct {
 	Conn    *net.TCPConn
 	ConnID  uint32
 	isClose bool
-	//处理业务的方法
-	HandleCall iface.HandleFunc
+
 	//是否关闭
 	ExitChan chan bool
+
+	//当前该链接绑定的路由
+	Router iface.Irouter
 }
 
 //构造方法
-func NewConnection(conn *net.TCPConn, connId uint32, callback iface.HandleFunc ) *Connection {
+func NewConnection(conn *net.TCPConn, connId uint32, router iface.Irouter) *Connection {
 
 	return &Connection{
-		Conn:       conn,
-		ConnID:     connId,
-		HandleCall: callback,
-		ExitChan:   make(chan bool),
+		Conn:     conn,
+		ConnID:   connId,
+		Router:   router,
+		ExitChan: make(chan bool),
 	}
 
 }
@@ -65,17 +67,28 @@ func (c *Connection) readerGoroutine() {
 			continue
 		}
 
-
-		err = c.HandleCall(c.Conn, buf, ln)
-		if err != nil {
-			fmt.Println("HandleCall error", err)
-			break
+		//得到Irequest 结构
+		req := Request{
+			conn: c,
+			data: buf[:ln],
 		}
+
+		go func(r iface.Irequest) {
+			c.Router.Before(r)
+			c.Router.Handler(r)
+			c.Router.After(r)
+		}(&req)
+
+		//err = c.HandleCall(c.Conn, buf, ln)
+		//if err != nil {
+		//	fmt.Println("HandleCall error", err)
+		//	break
+		//}
 
 	}
 
 }
-func (c *Connection) open() {
+func (c *Connection) Open() {
 	fmt.Println("conn open  connID=", c.ConnID)
 	// 启动 读取客户数据的 go程
 	go c.readerGoroutine()
