@@ -2,6 +2,7 @@ package cnet
 
 import (
 	"cginx/iface"
+	"cginx/utils"
 	"fmt"
 	"io"
 	"net"
@@ -57,7 +58,7 @@ func (c *Connection) readerGoroutine() {
 
 	for {
 
-		buf := make([]byte, 512)
+		buf := make([]byte, utils.ServerOpt.MaxPackageSize)
 		ln, err := c.Conn.Read(buf)
 		if err != nil {
 			if err == io.EOF {

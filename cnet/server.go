@@ -2,9 +2,9 @@ package cnet
 
 import (
 	"cginx/iface"
+	"cginx/utils"
 	"fmt"
 	"net"
-	"os"
 )
 
 type Server struct {
@@ -19,10 +19,10 @@ type Server struct {
 
 func NewServer(name string, ) iface.Iserver{
 	return &Server{
-		Name:   name,
+		Name:   utils.ServerOpt.Name,
 		IPType: "tcp",
-		IP:     "0.0.0.0",
-		Port:   8810,
+		IP:     utils.ServerOpt.Host,
+		Port:   utils.ServerOpt.TcpPort,
 		Router: nil,
 	}
 }
@@ -43,11 +43,15 @@ func (s *Server) AddRouter(router iface.Irouter) {
 
 
 func (s *Server) Start() {
-	fmt.Println("[Start] hello:", s.Name)
+	fmt.Println(s.Name)
+
+
+	fmt.Println("[cginx]version:", utils.ServerOpt.Version)
+	fmt.Println("[cginx]MaxPackageSize:", utils.ServerOpt.MaxPackageSize)
 	fmt.Println("[Start] Listener at ip:", s.IP, "port:", s.Port)
+
 	if s.Router == nil {
-		fmt.Println("[router is nil]")
-		os.Exit(1)
+		panic("[router is nil]")
 	}
 
 	go func() {
