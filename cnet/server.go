@@ -43,8 +43,7 @@ func (s *Server) AddRouter(router iface.Irouter) {
 
 
 func (s *Server) Start() {
-	fmt.Println(s.Name)
-
+	fmt.Printf("\033[45;36m%s\033[0m\n", "[cginx]"+utils.ServerOpt.Name)
 
 	fmt.Println("[cginx]version:", utils.ServerOpt.Version)
 	fmt.Println("[cginx]MaxPackageSize:", utils.ServerOpt.MaxPackageSize)

@@ -21,6 +21,8 @@ type Iconnection interface {
 
 	//发送数据
 	Send(data []byte) error
+
+	SendMsg( uint16,  []byte) error
 }
 
 

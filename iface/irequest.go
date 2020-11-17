@@ -1,10 +1,8 @@
 package iface
 
-
 //request 请求封装， 将连接和数据绑定在一起
 type Irequest interface {
 	//连接句柄
-
 
 	//请求的内容
 
@@ -12,6 +10,8 @@ type Irequest interface {
 
 	GetConnection() Iconnection
 
+	//需要进行消息分装
 	GetData() []byte
 
+	GetMsgId() uint16
 }

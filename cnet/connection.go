@@ -2,7 +2,7 @@ package cnet
 
 import (
 	"cginx/iface"
-	"cginx/utils"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -50,6 +50,24 @@ func (c *Connection) Send(data []byte) error {
 	return nil
 }
 
+func (c *Connection) SendMsg(id uint16, data []byte) (err error) {
+	if c.isClose {
+		return errors.New("conn is closed")
+	}
+
+	m := NewMessagePackage(id, data)
+	byteMsg, err := NewDataPack().Pack(m)
+	if err != nil {
+		return
+	}
+	_, err = c.GetTCPConnection().Write(byteMsg)
+	if err != nil {
+		fmt.Println("send msg", m.GetMsgId(), "error")
+		return
+	}
+	return
+}
+
 //读取客户消息
 func (c *Connection) readerGoroutine() {
 	fmt.Println("readerGoroutine is running ... ")
@@ -58,20 +76,40 @@ func (c *Connection) readerGoroutine() {
 
 	for {
 
-		buf := make([]byte, utils.ServerOpt.MaxPackageSize)
-		ln, err := c.Conn.Read(buf)
+		//拆包
+		pack := NewDataPack()
+		//读取header 6 字节
+		buf := make([]byte, pack.GetHeadLen())
+		_, err := c.GetTCPConnection().Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
 			fmt.Println("readerGoroutine error", err)
-			continue
+			break
+		}
+		msgHead, err := pack.Unpack(buf)
+		if err != nil {
+			fmt.Println("Unpack header error", err)
+			break
+		}
+
+		msg := msgHead.(*message)
+
+		//GetMsgLen > 0 说明msg有数据
+		if msgHead.GetMsgLen() > 0 {
+			msg.Data = make([]byte, msgHead.GetMsgLen())
+
+			if _, err = c.GetTCPConnection().Read(msg.Data); err != nil {
+				fmt.Println("Unpack data error", err)
+				break
+			}
 		}
 
 		//得到Irequest 结构
 		req := Request{
 			conn: c,
-			data: buf[:ln],
+			msg:  msg,
 		}
 
 		go func(r iface.Irequest) {
@@ -79,12 +117,6 @@ func (c *Connection) readerGoroutine() {
 			c.Router.Handler(r)
 			c.Router.After(r)
 		}(&req)
-
-		//err = c.HandleCall(c.Conn, buf, ln)
-		//if err != nil {
-		//	fmt.Println("HandleCall error", err)
-		//	break
-		//}
 
 	}
 
