@@ -12,7 +12,7 @@ type Server struct {
 	IPType string
 	IP     string
 	Port   int
-	Router iface.Irouter
+	MsgHandle iface.ImsgHandle
 }
 
 
@@ -23,22 +23,15 @@ func NewServer(name string, ) iface.Iserver{
 		IPType: "tcp",
 		IP:     utils.ServerOpt.Host,
 		Port:   utils.ServerOpt.TcpPort,
-		Router: nil,
+		MsgHandle: NewMsgHandle(),
 	}
 }
 
-func callback(conn *net.TCPConn, data []byte, ln int) (err error) {
-	_, err = conn.Write(data[:ln])
-	if err != nil {
-		fmt.Println("write error:", err)
-	}
-	return
-}
 
 
-func (s *Server) AddRouter(router iface.Irouter) {
-	fmt.Println("add router")
-	s.Router = router
+
+func (s *Server) AddRouter(msgId uint16, router iface.Irouter) {
+	s.MsgHandle.AddRouter(msgId,router)
 }
 
 
@@ -49,8 +42,9 @@ func (s *Server) Start() {
 	fmt.Println("[cginx]MaxPackageSize:", utils.ServerOpt.MaxPackageSize)
 	fmt.Println("[Start] Listener at ip:", s.IP, "port:", s.Port)
 
-	if s.Router == nil {
-		panic("[router is nil]")
+	fmt.Println(s)
+	if s.MsgHandle.Count() == 0 {
+		panic("[msghandler is nil]")
 	}
 
 	go func() {
@@ -76,7 +70,7 @@ func (s *Server) Start() {
 				fmt.Println("Accept error:", err)
 			}
 
-			userConn := NewConnection(conn, cid, s.Router)
+			userConn := NewConnection(conn, cid, s.MsgHandle)
 			cid++
 			go userConn.Open()
 		}

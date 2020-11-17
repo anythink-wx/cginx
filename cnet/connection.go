@@ -17,16 +17,16 @@ type Connection struct {
 	ExitChan chan bool
 
 	//当前该链接绑定的路由
-	Router iface.Irouter
+	MsgHandle iface.ImsgHandle
 }
 
 //构造方法
-func NewConnection(conn *net.TCPConn, connId uint32, router iface.Irouter) *Connection {
+func NewConnection(conn *net.TCPConn, connId uint32, router iface.ImsgHandle) *Connection {
 
 	return &Connection{
 		Conn:     conn,
 		ConnID:   connId,
-		Router:   router,
+		MsgHandle:   router,
 		ExitChan: make(chan bool),
 	}
 
@@ -112,11 +112,7 @@ func (c *Connection) readerGoroutine() {
 			msg:  msg,
 		}
 
-		go func(r iface.Irequest) {
-			c.Router.Before(r)
-			c.Router.Handler(r)
-			c.Router.After(r)
-		}(&req)
+		go c.MsgHandle.DoMsgHandler(&req)
 
 	}
 
