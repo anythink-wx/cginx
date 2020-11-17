@@ -13,8 +13,11 @@ type Connection struct {
 	ConnID  uint32
 	isClose bool
 
-	//是否关闭
+	//关闭连接
 	ExitChan chan bool
+
+	//创建无缓冲管道，用于读写分离
+	msgChan chan []byte
 
 	//当前该链接绑定的路由
 	MsgHandle iface.ImsgHandle
@@ -24,10 +27,11 @@ type Connection struct {
 func NewConnection(conn *net.TCPConn, connId uint32, router iface.ImsgHandle) *Connection {
 
 	return &Connection{
-		Conn:     conn,
-		ConnID:   connId,
-		MsgHandle:   router,
-		ExitChan: make(chan bool),
+		Conn:      conn,
+		ConnID:    connId,
+		MsgHandle: router,
+		ExitChan:  make(chan bool),
+		msgChan:   make(chan []byte),
 	}
 
 }
@@ -60,11 +64,13 @@ func (c *Connection) SendMsg(id uint16, data []byte) (err error) {
 	if err != nil {
 		return
 	}
-	_, err = c.GetTCPConnection().Write(byteMsg)
-	if err != nil {
-		fmt.Println("send msg", m.GetMsgId(), "error")
-		return
-	}
+
+	c.msgChan <- byteMsg
+	//_, err = c.GetTCPConnection().Write(byteMsg)
+	//if err != nil {
+	//	fmt.Println("send msg", m.GetMsgId(), "error")
+	//	return
+	//}
 	return
 }
 
@@ -72,7 +78,7 @@ func (c *Connection) SendMsg(id uint16, data []byte) (err error) {
 func (c *Connection) readerGoroutine() {
 	fmt.Println("readerGoroutine is running ... ")
 	defer fmt.Println("readerGoroutine is exit connID=", c.ConnID)
-	defer c.Close()
+	defer c.Close()//reader失败的时候释放该用户连接的chan资源
 
 	for {
 
@@ -117,12 +123,33 @@ func (c *Connection) readerGoroutine() {
 	}
 
 }
+
+//创建一个只写的goroutine
+func (c *Connection) writerGoroutine() {
+	fmt.Println("writerGoroutine is running ")
+	for {
+		select {
+		case msg := <-c.msgChan:
+			_, err := c.GetTCPConnection().Write(msg)
+			if err != nil {
+				fmt.Println("send Data err:", err)
+				return
+			}
+
+		case <-c.ExitChan:
+			fmt.Println("revice c.ExitChan , writerGoroutine return")
+			return
+		}
+	}
+}
+
 func (c *Connection) Open() {
 	fmt.Println("conn open  connID=", c.ConnID)
 	// 启动 读取客户数据的 go程
 	go c.readerGoroutine()
 
 	//启动会写数据的go程
+	go c.writerGoroutine()
 
 }
 
@@ -133,7 +160,11 @@ func (c *Connection) Close() {
 		return
 	}
 	c.isClose = true
-	c.Conn.Close()
+	err := c.Conn.Close()
+	if err != nil{
+		fmt.Println("conn close error=", err)
+	}
 	close(c.ExitChan)
+	close(c.msgChan)
 
 }
