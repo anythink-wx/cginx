@@ -14,6 +14,9 @@ type Server struct {
 	Port        int
 	MsgHandle   iface.ImsgHandle
 	ConnManager iface.IconnManager
+
+	OnConnOpen  func(conn iface.Iconnection)
+	OnConnClose func(conn iface.Iconnection)
 }
 
 func NewServer(name string, ) iface.Iserver {
@@ -71,10 +74,10 @@ func (s *Server) Start() {
 				fmt.Println("Accept error:", err)
 			}
 
-			fmt.Println("conn len",s.ConnManager.Len() ,"max conn", utils.ServerOpt.MaxConn)
+			fmt.Println("conn len", s.ConnManager.Len(), "max conn", utils.ServerOpt.MaxConn)
 			if s.ConnManager.Len() > utils.ServerOpt.MaxConn {
 				conn.Close()
-				fmt.Println("[alert] too Many Connection maxConn=",utils.ServerOpt.MaxConn)
+				fmt.Println("[alert] too Many Connection maxConn=", utils.ServerOpt.MaxConn)
 				continue
 			}
 
@@ -106,5 +109,30 @@ func (s *Server) Serve() {
 	//启动之后可以加入其它的框架参数
 
 	select {}
+
+}
+
+func (s *Server) SetConnOpen(hook func(conn iface.Iconnection) )  {
+	s.OnConnOpen = hook
+
+}
+
+func (s *Server) SetConnClose(hook func(conn iface.Iconnection) )  {
+	s.OnConnClose = hook
+
+}
+
+func (s *Server) CallConnOpen(conn iface.Iconnection) {
+	if s.OnConnOpen != nil{
+		fmt.Println("CallConnOpen")
+		s.OnConnOpen(conn)
+	}
+
+}
+func (s *Server) CallConnClose(conn iface.Iconnection){
+	if s.OnConnClose != nil {
+		fmt.Println("CallConnClose")
+		s.OnConnClose(conn)
+	}
 
 }

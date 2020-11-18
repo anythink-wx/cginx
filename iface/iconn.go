@@ -27,4 +27,4 @@ type Iconnection interface {
 
 
 //处理业务的类型
-type HandleFunc func(*net.TCPConn, []byte, int) error
+//type HandleFunc func(*net.TCPConn, []byte, int) error

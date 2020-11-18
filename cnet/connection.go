@@ -165,6 +165,9 @@ func (c *Connection) Open(RequestID *uint64) {
 	//启动会写数据的go程
 	go c.writerGoroutine()
 
+	//hook open之后
+	c.TcpServer.CallConnOpen(c)
+
 }
 
 func (c *Connection) Close() {
@@ -174,7 +177,9 @@ func (c *Connection) Close() {
 		return
 	}
 	c.isClose = true
-	err := c.Conn.Close()
+	//hook 关闭之前
+	c.TcpServer.CallConnClose(c)
+		err := c.Conn.Close()
 	if err != nil {
 		fmt.Println("conn close error=", err)
 	}
@@ -182,6 +187,5 @@ func (c *Connection) Close() {
 	close(c.msgChan)
 
 	c.TcpServer.GetConnMgr().Remove(c)
-
 
 }
