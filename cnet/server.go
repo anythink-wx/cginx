@@ -46,6 +46,8 @@ func (s *Server) Start() {
 	if s.MsgHandle.Count() == 0 {
 		panic("[msghandler is nil]")
 	}
+	var RequestID uint64 = 0
+	s.MsgHandle.StartWorkerPool()
 
 	go func() {
 
@@ -64,6 +66,7 @@ func (s *Server) Start() {
 		fmt.Println("[Start] ", s.Name, " success, listening")
 		var cid uint32
 		cid = 0
+
 		for {
 			conn, err := listen.AcceptTCP()
 			if err != nil {
@@ -72,7 +75,9 @@ func (s *Server) Start() {
 
 			userConn := NewConnection(conn, cid, s.MsgHandle)
 			cid++
-			go userConn.Open()
+			go func(RequestID *uint64) {
+				userConn.Open(RequestID)
+			}(&RequestID)
 		}
 	}()
 

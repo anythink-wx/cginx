@@ -15,4 +15,11 @@ type ImsgHandle interface {
 
 	//路由数量
 	Count() int
+
+	//启动worker工作池
+
+	StartWorkerPool()
+
+	//将消息放入工作池
+	PushWorkerQueue(req Irequest)
 }

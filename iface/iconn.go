@@ -5,7 +5,7 @@ import "net"
 type Iconnection interface {
 
 	//启动连接
-	Open()
+	Open(requestId *uint64)
 
 	//停止连接
 	Close()

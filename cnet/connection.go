@@ -65,17 +65,21 @@ func (c *Connection) SendMsg(id uint16, data []byte) (err error) {
 		return
 	}
 
+
+	defer func() {
+		i := recover()
+		if i != nil{
+			fmt.Println("SendMsg error=",i)
+		}
+	}()
+
 	c.msgChan <- byteMsg
-	//_, err = c.GetTCPConnection().Write(byteMsg)
-	//if err != nil {
-	//	fmt.Println("send msg", m.GetMsgId(), "error")
-	//	return
-	//}
+
 	return
 }
 
 //读取客户消息
-func (c *Connection) readerGoroutine() {
+func (c *Connection) readerGoroutine(requestId *uint64) {
 	fmt.Println("readerGoroutine is running ... ")
 	defer fmt.Println("readerGoroutine is exit connID=", c.ConnID)
 	defer c.Close()//reader失败的时候释放该用户连接的chan资源
@@ -114,12 +118,13 @@ func (c *Connection) readerGoroutine() {
 
 		//得到Irequest 结构
 		req := Request{
+			ReqId:*requestId,
 			conn: c,
 			msg:  msg,
 		}
-
-		go c.MsgHandle.DoMsgHandler(&req)
-
+		*requestId++
+		//将消息发送到工作池中
+		go c.MsgHandle.PushWorkerQueue(&req)
 	}
 
 }
@@ -143,10 +148,12 @@ func (c *Connection) writerGoroutine() {
 	}
 }
 
-func (c *Connection) Open() {
+func (c *Connection) Open(RequestID *uint64) {
+
+
 	fmt.Println("conn open  connID=", c.ConnID)
 	// 启动 读取客户数据的 go程
-	go c.readerGoroutine()
+	go c.readerGoroutine(RequestID)
 
 	//启动会写数据的go程
 	go c.writerGoroutine()

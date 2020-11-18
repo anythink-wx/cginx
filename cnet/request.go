@@ -3,8 +3,9 @@ package cnet
 import "cginx/iface"
 
 type Request struct {
-	//连接
 
+	ReqId uint64
+	//连接
 	conn iface.Iconnection
 	//客户端数据
 
@@ -23,4 +24,8 @@ func (r *Request) GetData() []byte {
 
 func (r *Request) GetMsgId() uint16 {
 	return r.msg.GetMsgId()
+}
+
+func (r *Request) GetReqID() uint64 {
+	return r.ReqId
 }

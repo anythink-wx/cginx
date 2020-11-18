@@ -14,4 +14,8 @@ type Irequest interface {
 	GetData() []byte
 
 	GetMsgId() uint16
+
+	//获取request序号
+	GetReqID() uint64
+
 }

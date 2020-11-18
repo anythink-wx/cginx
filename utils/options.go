@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 type serverOptions struct {
@@ -18,6 +19,9 @@ type serverOptions struct {
 	TcpPort        int    `json:"tcp_port"`
 	MaxConn        int    `json:"max_conn"`
 	MaxPackageSize uint32 `json:"max_package_size"` //数据包最大值
+
+	WorkerPoolSize uint8 `json:"worker_pool_size"` //处理业务的worker池数量
+	MaxWorkerTaskSize uint16  `json:"max_worker_task_size"` //每个worker的等待队列 有点 back_log 的意思？
 }
 
 
@@ -47,6 +51,7 @@ func init() {
 		TcpPort:        8810,
 		MaxConn:        10240,
 		MaxPackageSize: 4096,
+		WorkerPoolSize:uint8(runtime.NumCPU()),
 	}
 
 	ServerOpt.LoadOptions()
