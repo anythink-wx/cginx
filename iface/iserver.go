@@ -6,4 +6,6 @@ type Iserver interface {
 	Serve()
 
 	AddRouter(msgId uint16, router Irouter)
+
+	GetConnMgr() IconnManager
 }

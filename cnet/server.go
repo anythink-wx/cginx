@@ -8,38 +8,36 @@ import (
 )
 
 type Server struct {
-	Name   string
-	IPType string
-	IP     string
-	Port   int
-	MsgHandle iface.ImsgHandle
+	Name        string
+	IPType      string
+	IP          string
+	Port        int
+	MsgHandle   iface.ImsgHandle
+	ConnManager iface.IconnManager
 }
 
-
-
-func NewServer(name string, ) iface.Iserver{
+func NewServer(name string, ) iface.Iserver {
 	return &Server{
-		Name:   utils.ServerOpt.Name,
-		IPType: "tcp",
-		IP:     utils.ServerOpt.Host,
-		Port:   utils.ServerOpt.TcpPort,
-		MsgHandle: NewMsgHandle(),
+		Name:        utils.ServerOpt.Name,
+		IPType:      "tcp",
+		IP:          utils.ServerOpt.Host,
+		Port:        utils.ServerOpt.TcpPort,
+		MsgHandle:   NewMsgHandle(),
+		ConnManager: NewConnManager(),
 	}
 }
 
-
-
-
 func (s *Server) AddRouter(msgId uint16, router iface.Irouter) {
-	s.MsgHandle.AddRouter(msgId,router)
+	s.MsgHandle.AddRouter(msgId, router)
 }
-
 
 func (s *Server) Start() {
 	fmt.Printf("\033[45;36m%s\033[0m\n", "[cginx]"+utils.ServerOpt.Name)
 
 	fmt.Println("[cginx]version:", utils.ServerOpt.Version)
 	fmt.Println("[cginx]MaxPackageSize:", utils.ServerOpt.MaxPackageSize)
+	fmt.Println("[cginx]MaxConn:", utils.ServerOpt.MaxConn)
+
 	fmt.Println("[Start] Listener at ip:", s.IP, "port:", s.Port)
 
 	fmt.Println(s)
@@ -73,7 +71,15 @@ func (s *Server) Start() {
 				fmt.Println("Accept error:", err)
 			}
 
-			userConn := NewConnection(conn, cid, s.MsgHandle)
+			fmt.Println("conn len",s.ConnManager.Len() ,"max conn", utils.ServerOpt.MaxConn)
+			if s.ConnManager.Len() > utils.ServerOpt.MaxConn {
+				conn.Close()
+				fmt.Println("[alert] too Many Connection maxConn=",utils.ServerOpt.MaxConn)
+				continue
+			}
+
+			userConn := NewConnection(s, conn, cid, s.MsgHandle)
+
 			cid++
 			go func(RequestID *uint64) {
 				userConn.Open(RequestID)
@@ -83,9 +89,15 @@ func (s *Server) Start() {
 
 }
 
-func (s *Server) Stop() {
-
+func (s *Server) GetConnMgr() iface.IconnManager {
+	return s.ConnManager
 }
+
+func (s *Server) Stop() {
+	fmt.Println("[stop] shutdown now ...")
+	s.ConnManager.ClearConn()
+}
+
 func (s *Server) Serve() {
 
 	//启动监听的go程

@@ -54,7 +54,7 @@ func (m *MsgHandle) PushWorkerQueue(req iface.Irequest) {
 	//将消息平均分配
 	size := req.GetReqID() % uint64(utils.ServerOpt.WorkerPoolSize)
 	// 将该消息发送对应worker的 TaskQueue
-	fmt.Println("pudh msg to WorkerQueue ConnID=",req.GetConnection().GetConnID()," ReqID:",req.GetReqID(),"workerID:",size)
+	//fmt.Println("push msg to WorkerQueue ConnID=",req.GetConnection().GetConnID()," ReqID:",req.GetReqID(),"workerID:",size)
 
 	irequestsChan := m.TaskQueue[size]
 	irequestsChan<-req

@@ -2,6 +2,7 @@ package cnet
 
 import (
 	"cginx/iface"
+	"cginx/utils"
 	"errors"
 	"fmt"
 	"io"
@@ -9,9 +10,10 @@ import (
 )
 
 type Connection struct {
-	Conn    *net.TCPConn
-	ConnID  uint32
-	isClose bool
+	TcpServer iface.Iserver
+	Conn      *net.TCPConn
+	ConnID    uint32
+	isClose   bool
 
 	//关闭连接
 	ExitChan chan bool
@@ -24,9 +26,10 @@ type Connection struct {
 }
 
 //构造方法
-func NewConnection(conn *net.TCPConn, connId uint32, router iface.ImsgHandle) *Connection {
+func NewConnection(server iface.Iserver, conn *net.TCPConn, connId uint32, router iface.ImsgHandle) *Connection {
 
-	return &Connection{
+	c := &Connection{
+		TcpServer: server,
 		Conn:      conn,
 		ConnID:    connId,
 		MsgHandle: router,
@@ -34,6 +37,8 @@ func NewConnection(conn *net.TCPConn, connId uint32, router iface.ImsgHandle) *C
 		msgChan:   make(chan []byte),
 	}
 
+	c.TcpServer.GetConnMgr().Add(c)
+	return c
 }
 
 func (c *Connection) GetTCPConnection() *net.TCPConn {
@@ -65,11 +70,10 @@ func (c *Connection) SendMsg(id uint16, data []byte) (err error) {
 		return
 	}
 
-
 	defer func() {
 		i := recover()
-		if i != nil{
-			fmt.Println("SendMsg error=",i)
+		if i != nil {
+			fmt.Println("SendMsg error=", i)
 		}
 	}()
 
@@ -82,7 +86,7 @@ func (c *Connection) SendMsg(id uint16, data []byte) (err error) {
 func (c *Connection) readerGoroutine(requestId *uint64) {
 	fmt.Println("readerGoroutine is running ... ")
 	defer fmt.Println("readerGoroutine is exit connID=", c.ConnID)
-	defer c.Close()//reader失败的时候释放该用户连接的chan资源
+	defer c.Close() //reader失败的时候释放该用户连接的chan资源
 
 	for {
 
@@ -118,13 +122,17 @@ func (c *Connection) readerGoroutine(requestId *uint64) {
 
 		//得到Irequest 结构
 		req := Request{
-			ReqId:*requestId,
-			conn: c,
-			msg:  msg,
+			ReqId: *requestId,
+			conn:  c,
+			msg:   msg,
 		}
 		*requestId++
-		//将消息发送到工作池中
-		go c.MsgHandle.PushWorkerQueue(&req)
+		//将消息发送到工作池中 如果开启了工作池
+		if utils.ServerOpt.WorkerPoolSize > 0 {
+			go c.MsgHandle.PushWorkerQueue(&req)
+		} else {
+			go c.MsgHandle.DoMsgHandler(&req)
+		}
 	}
 
 }
@@ -150,7 +158,6 @@ func (c *Connection) writerGoroutine() {
 
 func (c *Connection) Open(RequestID *uint64) {
 
-
 	fmt.Println("conn open  connID=", c.ConnID)
 	// 启动 读取客户数据的 go程
 	go c.readerGoroutine(RequestID)
@@ -168,10 +175,13 @@ func (c *Connection) Close() {
 	}
 	c.isClose = true
 	err := c.Conn.Close()
-	if err != nil{
+	if err != nil {
 		fmt.Println("conn close error=", err)
 	}
 	close(c.ExitChan)
 	close(c.msgChan)
+
+	c.TcpServer.GetConnMgr().Remove(c)
+
 
 }
