@@ -23,6 +23,10 @@ type Iconnection interface {
 	Send(data []byte) error
 
 	SendMsg( uint16,  []byte) error
+
+	SetProp(k string, val interface{})
+	GetProp(k string) (interface{})
+	DelProp(k string)
 }
 
 

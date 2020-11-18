@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 )
 
 type Connection struct {
@@ -23,6 +24,10 @@ type Connection struct {
 
 	//当前该链接绑定的路由
 	MsgHandle iface.ImsgHandle
+
+	//属性
+	prop     map[string]interface{}
+	propLock sync.RWMutex
 }
 
 //构造方法
@@ -35,6 +40,7 @@ func NewConnection(server iface.Iserver, conn *net.TCPConn, connId uint32, route
 		MsgHandle: router,
 		ExitChan:  make(chan bool),
 		msgChan:   make(chan []byte),
+		prop:      make(map[string]interface{}),
 	}
 
 	c.TcpServer.GetConnMgr().Add(c)
@@ -179,7 +185,7 @@ func (c *Connection) Close() {
 	c.isClose = true
 	//hook 关闭之前
 	c.TcpServer.CallConnClose(c)
-		err := c.Conn.Close()
+	err := c.Conn.Close()
 	if err != nil {
 		fmt.Println("conn close error=", err)
 	}
@@ -188,4 +194,22 @@ func (c *Connection) Close() {
 
 	c.TcpServer.GetConnMgr().Remove(c)
 
+}
+
+func (c *Connection) SetProp(k string, val interface{}) {
+	c.propLock.Lock()
+	defer c.propLock.Unlock()
+	c.prop[k] = val
+}
+func (c *Connection) GetProp(k string) interface{} {
+	c.propLock.RLock()
+	defer c.propLock.RUnlock()
+	prop := c.prop[k]
+	return prop
+
+}
+func (c *Connection) DelProp(k string) {
+	c.propLock.Lock()
+	defer c.propLock.Unlock()
+	delete(c.prop, k)
 }
